@@ -263,7 +263,7 @@ class GardrailMeta(type):
 
         attrs["__call__"] = __call__
         attrs["validate"] = __call__
-        return super().__new__(self, name, bases, attrs)
+        return super(GardrailMeta, self).__new__(self, name, bases, attrs)
 
 
 class _Gardrail(object):

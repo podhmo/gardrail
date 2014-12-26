@@ -2,7 +2,7 @@
 import unittest
 from evilunit import test_target
 from gardrail import Gardrail
-
+from gardrail.compat import assert_regex
 
 @test_target("gardrail:multi")
 class MultiTests(unittest.TestCase):
@@ -45,7 +45,7 @@ class MultiTests(unittest.TestCase):
         target.difference_is_small.strict = True
         with self.assertRaises(Failure) as e:
             target(params)
-        self.assertRegex(e.exception.errors["x"][0], "fields:\['x', 'y'\] not found")
+        assert_regex(self, e.exception.errors["x"][0], "fields:\['x', 'y'\] not found")
 
 
 @test_target("gardrail:matched")
@@ -89,7 +89,7 @@ class MatchedTests(unittest.TestCase):
         target.is_positive.strict = True
         with self.assertRaises(Failure) as e:
             target(params)
-        self.assertRegex(e.exception.errors["__all__"][0], "fields:\['x', 'y'\] not found")
+        assert_regex(self, e.exception.errors["__all__"][0], "fields:\['x', 'y'\] not found")
 
 
 @test_target("gardrail:subrail")
@@ -138,7 +138,7 @@ class SubrailTests(unittest.TestCase):
         target.left.strict = True
         with self.assertRaises(Failure) as e:
             target(params)
-        self.assertRegex(e.exception.errors["left"][0], "fields:\['left'\] not found")
+        assert_regex(self, e.exception.errors["left"][0], "fields:\['left'\] not found")
 
 
 @test_target("gardrail:container")
@@ -193,7 +193,7 @@ class ContainerTests(unittest.TestCase):
         target.left.cls.strict = True
         with self.assertRaises(Failure) as e:
             target(params)
-        self.assertRegex(e.exception.errors["left"][0], "fields:\['left'\] not found")
+        assert_regex(self, e.exception.errors["left"][0], "fields:\['left'\] not found")
 
 
 @test_target("gardrail:collection")
@@ -239,7 +239,7 @@ class CollectionTests(unittest.TestCase):
         target.points.cls.strict = True
         with self.assertRaises(Failure) as e:
             target(params)
-        self.assertRegex(e.exception.errors["points"][0], "fields:\['points'\] not found")
+        assert_regex(self, e.exception.errors["points"][0], "fields:\['points'\] not found")
 
 
 @test_target("gardrail:convert")
@@ -266,5 +266,4 @@ class ConvertTests(unittest.TestCase):
         target.total.strict = True
         with self.assertRaises(Failure) as e:
             target(params)
-        self.assertRegex(e.exception.errors["total"][0], "fields:\['x', 'y'\] not found")
-
+        assert_regex(self, e.exception.errors["total"][0], "fields:\['x', 'y'\] not found")

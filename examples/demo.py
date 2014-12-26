@@ -100,7 +100,7 @@ print(ABCDEFG("g")({"a": {"b": {"c": {"d": {"e": {"f": "g"}}}}}}))
 
 
 class Mode(Gardrail):
-    @convert(["a_code", "b_code", "mode"])
+    @convert(["a_code", "b_code", "mode"], strict=True)
     def code(self, params):
         params["code"] = params["{}_code".format(params["mode"])]
 
