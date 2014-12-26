@@ -70,16 +70,17 @@ class Multi(object):
 
 
 class Matched(object):
-    def __init__(self, names, method, msg=None):
+    def __init__(self, names, method, path=None, msg=None):
         self.names = names
         self.method = method
+        self.path = path
         self._v_count = counter()
         self.msg = msg
 
     def validate_context(self, context):
         params = context.params
         if any(params.get(name) is not None for name in self.names):
-            result = self.method(context.scope, [(name, params[name]) for name in self.names if params.get(name) is not None])
+            result = self.method(context.scope, [params[name] for name in self.names if params.get(name) is not None])
             context.scope.dispatch(context, self, result)
         else:
             logger.debug("names=%s is not found", self.names)
@@ -130,7 +131,7 @@ class collection(object):
         context.path.pop()
 
 
-class Rail(object):
+class Subrail(object):
     def __init__(self, name, target):
         self.names = [name]
         self.Gardrail = Gardrail
@@ -170,18 +171,18 @@ def single(name, msg=None):
     return partial(Multi, [name], msg=msg)
 
 
-def multi(names, msg=None, path=None):
+def multi(names, path=None, msg=None):
     assert isinstance(names, (list, tuple))
     return partial(Multi, names, msg=msg, path=path)
 
 
-def matched(names, msg=None):
+def matched(names, path, msg=None):
     assert isinstance(names, (list, tuple))
-    return partial(Matched, names, msg=msg)
+    return partial(Matched, names, path=path, msg=msg)
 
 
-def rail(name):
-    return partial(Rail, name)
+def subrail(name):
+    return partial(Subrail, name)
 
 
 def convert(names=None, msg=None):

@@ -16,18 +16,18 @@ from gardrail import (
     single,
     share,
     container,
-    rail,
+    subrail,
     collection,
     convert
 )
 
 
 class PointGardrail(Gardrail):
-    @matched(["x", "y", "z"])
-    def positive(self, args):
-        for name, value in args:
+    @matched(["x", "y", "z"], path="__all__")
+    def positive(self, values):
+        for value in values:
             if value < 0:
-                return NG("negative", path=name)
+                return NG("negative")
 
     @multi(["x", "y"], path="x")
     def equals(self, x, y):
@@ -36,14 +36,14 @@ class PointGardrail(Gardrail):
 
 
 class PairGardrail(Gardrail):
-    left = rail("left")(PointGardrail)
-    right = rail("right")(PointGardrail)
+    left = subrail("left")(PointGardrail)
+    right = subrail("right")(PointGardrail)
 
 
-def positive(self, args):
-    for name, value in args:
+def positive(self, values):
+    for value in values:
         if value < 0:
-            return NG("negative", path=name)
+            return NG("negative")
 
 
 def equals(self, x, y):
@@ -54,19 +54,19 @@ def equals(self, x, y):
 class Pair2Gardrail(Gardrail):
     @container
     class left:
-        positive = matched(["x", "y", "z"])(positive)
+        positive = matched(["x", "y", "z"], path="__all__")(positive)
         equals = multi(["x", "y"], path="x")(equals)
 
     @container
     class right:
-        positive = matched(["x", "y", "z"])(positive)
+        positive = matched(["x", "y", "z"], path="__all__")(positive)
         equals = multi(["x", "y"], path="x")(equals)
 
 
 class PointListGardrail(Gardrail):
     @collection
     class points:
-        positive = matched(["x", "y", "z"])(positive)
+        positive = matched(["x", "y", "z"], path="__all__")(positive)
         equals = multi(["x", "y"], path="x")(equals)
 
 
@@ -105,3 +105,10 @@ class Mode(Gardrail):
         params["code"] = params["{}_code".format(params["mode"])]
 
 print(Mode()({"a_code": "aaaaa", "b_code": "b", "mode": "a"}))
+
+
+# class Dispatch(Gardrail):
+#     @dispatch({"a": foo, "b": foo})
+#     def dispatch(self, cont, v):
+#         return cont["a"](v)
+
