@@ -24,7 +24,7 @@ class MultiTests(unittest.TestCase):
         result = target(params)
         self.assertEqual(result, params)
 
-    def test_success__if_paramaters_is_not_matched(self):
+    def test_success__if_paramaters_are_missing(self):
         params = {}
         target = self._makeOne()
         result = target(params)
@@ -38,6 +38,15 @@ class MultiTests(unittest.TestCase):
             target(params)
         self.assertEqual(e.exception.errors, {"x": ["oops"]})
 
+    def test_failure__if_strict_True__missing(self):
+        from gardrail import Failure
+        params = {}
+        target = self._makeOne()
+        target.difference_is_small.strict = True
+        with self.assertRaises(Failure) as e:
+            target(params)
+        self.assertRegex(e.exception.errors["x"][0], "fields:\['x', 'y'\] not found")
+
 
 @test_target("gardrail:matched")
 class MatchedTests(unittest.TestCase):
@@ -48,7 +57,7 @@ class MatchedTests(unittest.TestCase):
             deco = self._getTarget()
 
             @deco(["x", "y"], path="__all__")
-            def difference_is_small(self, values):
+            def is_positive(self, values):
                 if not all(e > 0 for e in values):
                     return NG("oops")
         return G()
@@ -59,7 +68,7 @@ class MatchedTests(unittest.TestCase):
         result = target(params)
         self.assertEqual(result, params)
 
-    def test_success__if_paramaters_is_not_matched(self):
+    def test_success__if_paramaters_are_missing(self):
         params = {}
         target = self._makeOne()
         result = target(params)
@@ -72,6 +81,15 @@ class MatchedTests(unittest.TestCase):
         with self.assertRaises(Failure) as e:
             target(params)
         self.assertEqual(e.exception.errors, {"__all__": ["oops"]})
+
+    def test_failure__if_strict_True__missing(self):
+        from gardrail import Failure
+        params = {}
+        target = self._makeOne()
+        target.is_positive.strict = True
+        with self.assertRaises(Failure) as e:
+            target(params)
+        self.assertRegex(e.exception.errors["__all__"][0], "fields:\['x', 'y'\] not found")
 
 
 @test_target("gardrail:subrail")
@@ -98,7 +116,7 @@ class SubrailTests(unittest.TestCase):
         result = target(params)
         self.assertEqual(result, params)
 
-    def test_success__if_paramaters_is_not_matched(self):
+    def test_success__if_paramaters_are_missing(self):
         params = {}
         target = self._makeOne()
         result = target(params)
@@ -112,6 +130,15 @@ class SubrailTests(unittest.TestCase):
         with self.assertRaises(Failure) as e:
             target(params)
         self.assertEqual(e.exception.errors, {"right": {"x": ["oops"]}})
+
+    def test_failure__if_strict_True__missing(self):
+        from gardrail import Failure
+        params = {}
+        target = self._makeOne()
+        target.left.strict = True
+        with self.assertRaises(Failure) as e:
+            target(params)
+        self.assertRegex(e.exception.errors["left"][0], "fields:\['left'\] not found")
 
 
 @test_target("gardrail:container")
@@ -144,7 +171,7 @@ class ContainerTests(unittest.TestCase):
         result = target(params)
         self.assertEqual(result, params)
 
-    def test_success__if_paramaters_is_not_matched(self):
+    def test_success__if_paramaters_are_missing(self):
         params = {}
         target = self._makeOne()
         result = target(params)
@@ -158,6 +185,15 @@ class ContainerTests(unittest.TestCase):
         with self.assertRaises(Failure) as e:
             target(params)
         self.assertEqual(e.exception.errors, {"right": {"x": ["oops"]}})
+
+    def test_failure__if_strict_True__missing(self):
+        from gardrail import Failure
+        params = {}
+        target = self._makeOne()
+        target.left.cls.strict = True
+        with self.assertRaises(Failure) as e:
+            target(params)
+        self.assertRegex(e.exception.errors["left"][0], "fields:\['left'\] not found")
 
 
 @test_target("gardrail:collection")
@@ -182,7 +218,7 @@ class CollectionTests(unittest.TestCase):
         result = target(params)
         self.assertEqual(result, params)
 
-    def test_success__if_paramaters_is_not_matched(self):
+    def test_success__if_paramaters_are_missing(self):
         params = {}
         target = self._makeOne()
         result = target(params)
@@ -196,6 +232,15 @@ class CollectionTests(unittest.TestCase):
             target(params)
         self.assertEqual(e.exception.errors, {'points': {1: {'x': ['oops']}}})
 
+    def test_failure__if_strict_True__missing(self):
+        from gardrail import Failure
+        params = {}
+        target = self._makeOne()
+        target.points.cls.strict = True
+        with self.assertRaises(Failure) as e:
+            target(params)
+        self.assertRegex(e.exception.errors["points"][0], "fields:\['points'\] not found")
+
 
 @test_target("gardrail:convert")
 class ConvertTests(unittest.TestCase):
@@ -203,7 +248,7 @@ class ConvertTests(unittest.TestCase):
         class G(Gardrail):
             deco = self._getTarget()
 
-            @deco(["x", "y"])
+            @deco(["x", "y"], path="total")
             def total(self, params):
                 params["total"] = params["x"] + params["y"]
         return G()
@@ -213,3 +258,13 @@ class ConvertTests(unittest.TestCase):
         target = self._makeOne()
         result = target(params)
         self.assertEqual(result, {"x": 10, "y": 200, "total": 210})
+
+    def test_failure__if_strict_True__missing(self):
+        from gardrail import Failure
+        params = {}
+        target = self._makeOne()
+        target.total.strict = True
+        with self.assertRaises(Failure) as e:
+            target(params)
+        self.assertRegex(e.exception.errors["total"][0], "fields:\['x', 'y'\] not found")
+

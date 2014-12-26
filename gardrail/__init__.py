@@ -59,12 +59,13 @@ counter = Counter()
 
 
 class Multi(object):
-    def __init__(self, names, method, msg=None, path=None):
+    def __init__(self, names, method, msg=None, path=None, strict=False):
         self.names = names
         self.method = method
         self._v_count = counter()
         self.msg = msg
         self.path = path
+        self.strict = strict
 
     def validate_context(self, context):
         params = context.params
@@ -72,16 +73,19 @@ class Multi(object):
             result = self.method(context.scope, *(params[name] for name in self.names))
             context.scope.dispatch(context, self, result)
         else:
-            logger.debug("names=%s is not found", self.names)
+            if self.strict:
+                context.scope.dispatch(context, self, NG("fields:{} not found: {}.{}".format(self.names, self.__class__.__name__, self.method)))
+            logger.debug("names=%s not found", self.names)
 
 
 class Matched(object):
-    def __init__(self, names, method, path=None, msg=None):
+    def __init__(self, names, method, path=None, msg=None, strict=False):
         self.names = names
         self.method = method
         self.path = path
         self._v_count = counter()
         self.msg = msg
+        self.strict = strict
 
     def validate_context(self, context):
         params = context.params
@@ -89,11 +93,14 @@ class Matched(object):
             result = self.method(context.scope, [params[name] for name in self.names if params.get(name) is not None])
             context.scope.dispatch(context, self, result)
         else:
-            logger.debug("names=%s is not found", self.names)
+            if self.strict:
+                context.scope.dispatch(context, self, NG("fields:{} not found: {}.{}".format(self.names, self.__class__.__name__, self.method)))
+            logger.debug("names=%s not found", self.names)
 
 
 class container(object):
     def __init__(self, cls):
+        self.cls = cls
         self.names = [cls.__name__]  # for common interface
         self.validators = [v for v in cls.__dict__.values() if is_validator(v)]
         self.validators.sort(key=lambda o: o._v_count)
@@ -101,7 +108,9 @@ class container(object):
 
     def validate_context(self, context):
         if self.names[0] not in context.params:
-            logger.debug("names=%s is not found", self.names)
+            if getattr(self.cls, "strict", False):
+                context.scope.dispatch(context, self, NG("fields:{} not found: {}.{}".format(self.names, self.__class__.__name__, self.cls)))
+            logger.debug("names=%s not found", self.names)
             return
 
         context.path.append(self.names[0])
@@ -115,6 +124,7 @@ class container(object):
 
 class collection(object):
     def __init__(self, cls):
+        self.cls = cls
         self.names = [cls.__name__]  # for common interface
         self.validators = [v for v in cls.__dict__.values() if is_validator(v)]
         self.validators.sort(key=lambda o: o._v_count)
@@ -122,7 +132,9 @@ class collection(object):
 
     def validate_context(self, context):
         if self.names[0] not in context.params:
-            logger.debug("names=%s is not found", self.names)
+            if getattr(self.cls, "strict", False):
+                context.scope.dispatch(context, self, NG("fields:{} not found: {}.{}".format(self.names, self.__class__.__name__, self.cls)))
+            logger.debug("names=%s not found", self.names)
             return
 
         context.path.append(self.names[0])
@@ -138,14 +150,17 @@ class collection(object):
 
 
 class Subrail(object):
-    def __init__(self, name, target):
+    def __init__(self, name, target, strict=False):
         self.names = [name]
         self.Gardrail = target
         self._v_count = counter()
+        self.strict = strict
 
     def validate_context(self, context):
         if self.names[0] not in context.params:
-            logger.debug("names=%s is not found", self.names)
+            if self.strict:
+                context.scope.dispatch(context, self, NG("fields:{} not found: {}.{}".format(self.names, self.__class__.__name__, self.Gardrail)))
+            logger.debug("names=%s not found", self.names)
             return
 
         context.path.append(self.names[0])
@@ -159,11 +174,13 @@ class Subrail(object):
 
 
 class Convert(object):
-    def __init__(self, names, method, msg=None):
+    def __init__(self, names, method, msg=None, strict=False, path=None):
         self.names = names
         self.method = method
         self._v_count = counter()
         self.msg = msg
+        self.strict = strict
+        self.path = path
 
     def validate_context(self, context):
         params = context.params
@@ -172,28 +189,30 @@ class Convert(object):
         else:
             if all(params.get(name) is not None for name in self.names):
                 return self.method(context.scope, params)
+            elif self.strict:
+                context.scope.dispatch(context, self, NG("fields:{} not found: {}.{}".format(self.names, self.__class__.__name__, self.method)))
 
 
-def single(name, msg=None):
-    return partial(Multi, [name], msg=msg)
+def single(name, msg=None, strict=False):
+    return partial(Multi, [name], msg=msg, strict=strict)
 
 
-def multi(names, path=None, msg=None):
+def multi(names, path=None, msg=None, strict=False):
     assert isinstance(names, (list, tuple))
-    return partial(Multi, names, msg=msg, path=path)
+    return partial(Multi, names, msg=msg, path=path, strict=strict)
 
 
-def matched(names, path, msg=None):
+def matched(names, path, msg=None, strict=False):
     assert isinstance(names, (list, tuple))
-    return partial(Matched, names, path=path, msg=msg)
+    return partial(Matched, names, path=path, msg=msg, strict=strict)
 
 
-def subrail(name):
-    return partial(Subrail, name)
+def subrail(name, strict=False):
+    return partial(Subrail, name, strict=strict)
 
 
-def convert(names=None, msg=None):
-    return partial(Convert, names, msg=msg)
+def convert(names=None, msg=None, strict=False, path=None):
+    return partial(Convert, names, path=path, msg=msg, strict=strict)
 
 
 def share(*factories):
