@@ -19,7 +19,13 @@ class Context(object):
     __slots__ = ("ob", "scope", "status", "params", "errors", "path")
 
 
-Failure = namedtuple("Failure", "errors")
+class Failure(Exception):
+    @property
+    def errors(self):
+        return self.args[0]
+
+    def __repr__(self):
+        return "Failure[{!r}]".format(self.errors)
 
 OK = None
 
@@ -134,7 +140,7 @@ class collection(object):
 class Subrail(object):
     def __init__(self, name, target):
         self.names = [name]
-        self.Gardrail = Gardrail
+        self.Gardrail = target
         self._v_count = counter()
 
     def validate_context(self, context):
@@ -145,6 +151,7 @@ class Subrail(object):
         context.path.append(self.names[0])
         original = context.params
         context.params = context.params[self.names[0]]
+
         for v in self.Gardrail.validators:
             v.validate_context(context)
         context.params = original
@@ -288,7 +295,7 @@ class _Gardrail(object):
         return params
 
     def on_failure(self, _, params, errors):
-        return Failure(errors=errors)
+        raise Failure(errors)
 
 
 Gardrail = GardrailMeta("Gardrail", (_Gardrail, ), {})
