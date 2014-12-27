@@ -283,7 +283,9 @@ class _Status(object):
 
 class GardrailMeta(type):
     def __new__(self, name, bases, attrs):
-        validators = [v for v in attrs.values() if is_validator(v)]
+        ancestor_validators = set(v for c in bases for v in getattr(c, "validators", []) if is_validator(v))
+        validators = set([v for v in attrs.values() if is_validator(v)])
+        validators = list(ancestor_validators | validators)
         validators.sort(key=lambda o: o._v_count)
         attrs["validators"] = validators
 
