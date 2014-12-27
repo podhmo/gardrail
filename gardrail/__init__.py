@@ -3,7 +3,6 @@ import sys
 import logging
 logger = logging.getLogger(__name__)
 from functools import partial
-from collections import namedtuple
 
 
 # 本当はnamedtupleみたいなものがほしい
@@ -74,8 +73,39 @@ class Multi(object):
             context.scope.dispatch(context, self, result)
         else:
             if self.strict:
-                context.scope.dispatch(context, self, NG("fields:{} not found: {}.{}".format(self.names, self.__class__.__name__, self.method)))
+                ng = context.scope.on_missing(self.names, self.__class__.__name__, self.method)
+                context.scope.dispatch(context, self, ng)
             logger.debug("names=%s not found", self.names)
+
+
+class Dispatch(object):
+    def __init__(self, names, method, strict=False):
+        self.names = names
+        self.dispatch_method = method
+        self._v_count = counter()
+        self.strict = strict
+
+    def dispatch_validate(self, rail, child, path=[], context=None):
+        if not isinstance(path, (list, tuple)):
+            path = [path]
+        N = len(path)
+
+        original = context.params
+        context.params = child
+        context.path.extend(path)
+        rail.validate_context(context)
+        for i in range(N):
+            context.path.pop()
+        context.params = original
+
+    def validate_context(self, context):
+        params = context.params
+        if not self.names:
+            check_fn = partial(self.dispatch_validate, context=context)
+            return self.dispatch_method(context.scope, check_fn, params)
+        if all(params.get(name) is not None for name in self.names):
+            check_fn = partial(self.dispatch_validate, context=context)
+            self.dispatch_method(context.scope, partial(self.dispatch_validate, context=context), params)
 
 
 class Matched(object):
@@ -94,7 +124,8 @@ class Matched(object):
             context.scope.dispatch(context, self, result)
         else:
             if self.strict:
-                context.scope.dispatch(context, self, NG("fields:{} not found: {}.{}".format(self.names, self.__class__.__name__, self.method)))
+                ng = context.scope.on_missing(self.names, self.__class__.__name__, self.method)
+                context.scope.dispatch(context, self, ng)
             logger.debug("names=%s not found", self.names)
 
 
@@ -109,7 +140,8 @@ class container(object):
     def validate_context(self, context):
         if self.names[0] not in context.params:
             if getattr(self.cls, "strict", False):
-                context.scope.dispatch(context, self, NG("fields:{} not found: {}.{}".format(self.names, self.__class__.__name__, self.cls)))
+                ng = context.scope.on_missing(self.names, self.__class__.__name__, self.cls)
+                context.scope.dispatch(context, self, ng)
             logger.debug("names=%s not found", self.names)
             return
 
@@ -133,7 +165,8 @@ class collection(object):
     def validate_context(self, context):
         if self.names[0] not in context.params:
             if getattr(self.cls, "strict", False):
-                context.scope.dispatch(context, self, NG("fields:{} not found: {}.{}".format(self.names, self.__class__.__name__, self.cls)))
+                ng = context.scope.on_missing(self.names, self.__class__.__name__, self.cls)
+                context.scope.dispatch(context, self, ng)
             logger.debug("names=%s not found", self.names)
             return
 
@@ -159,7 +192,8 @@ class Subrail(object):
     def validate_context(self, context):
         if self.names[0] not in context.params:
             if self.strict:
-                context.scope.dispatch(context, self, NG("fields:{} not found: {}.{}".format(self.names, self.__class__.__name__, self.Gardrail)))
+                ng = context.scope.on_missing(self.names, self.__class__.__name__, self.Gardrail)
+                context.scope.dispatch(context, self, ng)
             logger.debug("names=%s not found", self.names)
             return
 
@@ -169,6 +203,7 @@ class Subrail(object):
 
         for v in self.Gardrail.validators:
             v.validate_context(context)
+
         context.params = original
         context.path.pop()
 
@@ -190,7 +225,8 @@ class Convert(object):
             if all(params.get(name) is not None for name in self.names):
                 return self.method(context.scope, params)
             elif self.strict:
-                context.scope.dispatch(context, self, NG("fields:{} not found: {}.{}".format(self.names, self.__class__.__name__, self.method)))
+                ng = context.scope.on_missing(self.names, self.__class__.__name__, self.method)
+                context.scope.dispatch(context, self, ng)
 
 
 def single(name, msg=None, strict=False):
@@ -200,6 +236,10 @@ def single(name, msg=None, strict=False):
 def multi(names, path=None, msg=None, strict=False):
     assert isinstance(names, (list, tuple))
     return partial(Multi, names, msg=msg, path=path, strict=strict)
+
+
+def dispatch(names=None, strict=False):
+    return partial(Dispatch, names, strict=strict)
 
 
 def matched(names, path, msg=None, strict=False):
@@ -316,5 +356,7 @@ class _Gardrail(object):
     def on_failure(self, _, params, errors):
         raise Failure(errors)
 
+    def on_missing(self, names, wrapname, fn):
+        return NG("fields:{} not found: {}.{}".format(names, wrapname, fn))
 
 Gardrail = GardrailMeta("Gardrail", (_Gardrail, ), {})
